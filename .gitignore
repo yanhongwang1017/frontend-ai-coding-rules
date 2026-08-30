@@ -1,5 +1,9 @@
 .codegraph
+# .trae/
+# .agents/
 .claude/
+# AGENTS.md
+# CLAUDE.md
 接口联调清单.md
 *-api.md
 # =========================
