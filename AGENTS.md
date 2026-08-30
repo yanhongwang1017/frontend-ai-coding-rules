@@ -52,8 +52,8 @@
 ### 2.3 任务模式与范围控制
 
 - 任务开始时先确认授权；没有明确模式时按最小授权处理，不要猜。`review` / `answer` / `monitor` = 只读：只报告、只回答、只观察，不改文件、不跑有副作用的命令——接口验证仅限 GET 等无副作用请求，写操作类验证需先确认。`change` = 只做被要求的工作，以及完成它必要的后果。
-- **Stop 四问**（添加任何未被要求的工作之前）：① 用户要求了吗？② 不做它，当前要求的结果能完成吗？③ 哪段可达的代码、数据、用户决策、法律或平台要求、部署状态、验收条件证明它必要？④ 省掉它，当前任务会失败吗？——四问之后仍然是「不」，就不实现；有价值时报告一句即可。证据撑不住时，报告或暂缓，不要顺手实现。
-- **没被要求就不加**：没有消费者的防御（没有下游读取的校验和、防「假想输入」的 guard、为「将来的可能」准备的迁移框架、包装层、feature flag）；未被要求的抽象、依赖、兼容层、子代理、样板代码；不把内部风险控制写成面向用户的 disclaimer、限制说明、隐私声明、安全警告（必要披露放在真正的决策点，其余边界放进行为、测试或支持文档）；不在交付物里做自我审计（「本结果未经 X 验证」「我检查了哪些材料」这类勤勉展示），不确定的主张收窄范围或标注来源，只有用户要求或它实质改变读者对结果的解读时才写方法学和局限。
+- **Stop 四问**（添加任何未被要求的工作之前）：① 用户要求了吗？② 不做它，当前要求的结果能完成吗？③ 哪段可达的代码、数据、用户决策、法律或平台要求、部署状态、验收条件证明它必要？④ 省掉它，当前任务会失败吗？——四问之后仍然是「不」，就不实现；有价值时报告一句即可。证据撑不住时，报告或暂缓，不要顺手实现。存在多种合理实现时，选满足当前需求的最小实现，而不是功能最完整的实现。
+- **没被要求就不加**：没有消费者的防御（没有下游读取的校验和、防「假想输入」的 guard、为「将来的可能」准备的迁移框架、包装层、feature flag）；未被要求的抽象、依赖、兼容层、子代理、样板代码；不把内部风险控制写成面向用户的 disclaimer、限制说明、隐私声明、安全警告（必要披露放在真正的决策点，其余边界放进行为、测试或支持文档）；不在交付物里做自我审计（「本结果未经 X 验证」「我检查了哪些材料」这类勤勉展示），不确定的主张收窄范围或标注来源，只有用户要求或它实质改变读者对结果的解读时才写方法学和局限；业务关联功能同理——业务上常见 ≠ 用户要求，做了发货弹窗不等于要顺手加物流轨迹、时间线、详情页。
 - **用户坚持时**：质疑一次就够——「你真的需要 X 吗？Y 是不是就够了？」用户坚持要完整版，就照做、正确地做，不再重新争论。任何用户明确要求的东西，永远不在裁减之列。
 
 ---
@@ -134,11 +134,7 @@
 
 ### 5.6 Vue / uni-app 组件规则
 
-1. 事件处理：短于 8 行的直接内联写在模板里，例如 `@click="count++"`，不要写 `increment()` 方法。
-2. 计算属性：简单计算可以直接写在模板里，例如 `{{ price * quantity }}`。只在需要缓存或复用时才使用 `computed`。
-3. `mounted` / `onLoad`：初始化逻辑加注释、空行后直接内联编写，不要拆成多个一次性方法。
-4. `watch`：短于 5 行的回调逻辑直接写，不要抽成方法。
-5. 不要把 `uni.showToast`、`uni.setStorageSync`、`this.$emit`、`console.log` 这类简单调用包装成方法。
+编写 Vue / uni-app 组件模板与脚本时，必须先加载并遵循 `vue-component-style` skill：事件处理、计算属性、生命周期初始化、watch 的短逻辑一律内联，禁止包装 `uni.showToast` 这类简单调用。
 
 ### 5.7 Mixin / Hooks / Composables 规则
 
@@ -168,7 +164,32 @@
 3. **两种状态以上的集中收敛**：
    - 涉及两种状态以上的判断与交互权限（如可编辑、可发布、各状态徽标样式），必须使用 `Set<Enum>` 或字典（Map / Object）在常量层集中收敛，禁止在模板或方法中平铺多条件 `||` 运算。
 
-### 5.10 写任何函数前先自检
+### 5.10 数据字段来源规则——禁止猜测字段
+
+生成或修改代码时遵循「证据优先，禁止猜测字段」：每个数据字段必须有明确来源，只能使用需求文档、API 接口定义、TypeScript 类型定义、项目现有代码、后端返回示例、数据库/实体定义中明确存在的字段。严禁根据字段名称、业务经验或常见命名方式自行猜测。
+
+1. **严禁堆叠 `||` 猜测字段**。已知接口返回 `userName`，只能使用 `data.userName`；下面这种猜测式兼容写法严禁出现：
+
+   ```js
+   // 禁止：这些字段可能根本不存在
+   const name = data.name || data.userName || data.username || data.nickName || ''
+   ```
+
+   确认字段后直接写 `const name = data.userName`；`data` 可能为 `null` / `undefined` 时写 `data?.userName`；需要默认值时写 `data?.userName ?? ''`。
+
+2. **禁止为了防御而多路径取值**。除非项目代码或接口定义明确证明这些路径都存在，禁止 `row.data?.value || row.info?.value || row.result?.value || row.value || ''` 这类写法；真实路径无法确定时，先搜索项目代码或接口定义，而不是猜。
+
+3. **默认值优先用 `??`，不用 `||`**。`const count = data.count || 0` 会把合法的 `0` 当假值吞掉，应写 `data.count ?? 0`；只有明确需要过滤假值时才用 `||`（如 `const keyword = inputValue || '全部'`）。
+
+4. **每个字段都要先确认来源再使用**。生成代码前按顺序检查：当前需求 → 当前文件 → 相关组件 → API 接口 → TypeScript 类型 → 项目已有用法。项目里已有 `userInfo.userName` 就沿用，不要自行改成 `userInfo.name` / `userInfo.username` / `userInfo.nickName`；修改已有代码时沿用原取值方式（原代码是 `row.userName`，后续继续 `row.userName`），除非需求明确要求兼容多个字段。
+
+5. **字段不确定时停下询问，禁止自行补全**。无法确认字段名称、数据结构或接口返回值时，必须明确指出「当前上下文无法确认该字段的真实名称或数据结构，请提供接口返回结构或相关类型定义」，禁止为了让代码看起来完整而创造字段。
+
+6. **多字段兜底必须有真实业务依据**。只有接口文档或业务明确说明存在多个字段时，才允许 `const name = data.userName ?? data.nickName ?? ''`，且字段必须真实存在，不能由 AI 猜测。
+
+> 核心原则：宁可暴露字段缺失问题，也不要猜测字段；宁可询问接口结构，也不要自行创造字段；先搜索和确认真实数据结构，再生成代码。
+
+### 5.11 写任何函数前先自检
 
 自问：
 
@@ -176,88 +197,46 @@
 - 函数体超过 8 行吗？→ 不超过就考虑内联。
 - 这个函数是不是只是调了另一个函数？→ 是就删掉它，直接调用目标函数。
 
-### 5.11 坏例子与好例子对比
+### 5.12 坏例子与好例子对比
 
 > 以下示例采用 Vue 3 `<script setup>` 写法演示；Vue 2 / uni-app 项目按 Options API 对照即可，规则相同。
 
-#### 坏例子——过度工程化
-
 ```js
-// badComposable.js
-import { ref } from 'vue'
-
+// 坏：composable 存简单数据、转发函数、只被调用一次的包装层
 export function usePage() {
   const page = ref(1)
-  const size = ref(10)  // 简单数据不该包进 composable
-  const getPage = () => page.value        // 只转发数据
-  const setPage = (val) => { page.value = val }
+  const getPage = () => page.value   // 只是转发数据
   const resetPage = () => { page.value = 1 }
-  return { page, size, getPage, setPage, resetPage }
+  const init = () => loadData()      // init 只被调用一次，里面只有一行
+  return { page, getPage, resetPage, init }
 }
+
+// 好：简单状态留在组件内直接用；只有真正被多组件复用的逻辑（如 useList：loading + list + fetchList）才抽成 composable
+const page = ref(1)
 ```
 
 ```vue
-<!-- badComponent.vue -->
+<!-- 坏：一件事抽一个方法，层层包装 -->
 <button @click="increment">Increase</button>
 <script setup>
-import { ref, onMounted } from 'vue'
-
-const count = ref(0)
-const increment = () => { count++ }  // 只做一件事，应直接内联
-function init() {  // 只被调用一次
-  loadData()
-}
-function loadData() {  // 又一层无意义的包装
-  fetch()
-}
-onMounted(() => {
-  init()
-})
+const increment = () => { count++ }   // 只做一件事，应内联为 @click="count++"
+function init() { loadData() }        // 只被调用一次，应直接写在 onMounted 里
+onMounted(() => { init() })
 </script>
-```
 
-#### 好例子——内联优先
-
-```vue
-<!-- goodComponent.vue -->
+<!-- 好：事件内联进模板，初始化逻辑带注释直接写 -->
 <button @click="count++">Increase</button>
 <script setup>
-import { ref, onMounted } from 'vue'
-
-const userId = ref('')
-const count = ref(0)
-
 onMounted(() => {
   // 1. 获取用户信息
   userId.value = getUserInfo()
-
   // 2. 加载列表
   fetchList()
 })
 </script>
 ```
 
-```js
-// useList.js（真正被复用）
-import { ref } from 'vue'
-
-export function useList(apiUrl) {
-  const loading = ref(false)
-  const list = ref([])
-
-  async function fetchList() {
-    loading.value = true
-    const res = await request({ url: apiUrl }).finally(() => {
-      loading.value = false
-    })
-    list.value = res.data
-  }
-
-  return { loading, list, fetchList }
-}
-```
-
-### 5.12 核心原则
+### 5.13 核心原则
 
 代码应该读起来像一个连贯的故事，而不是一场寻宝游戏。能内联尽量内联；只有存在真实复用时才提取。
 
@@ -275,28 +254,11 @@ export function useList(apiUrl) {
 
 ### 6.3 Tailwind CSS / Windi CSS 规则
 
-使用 Tailwind CSS 和 Windi CSS 生成代码时，严格遵守以下规则：
-
-1. 只使用必要的、真实存在的 Tailwind CSS 和 Windi CSS 类名
-2. 布局优先使用 flex，其次是 grid
-3. 不使用生僻的或 AI 编造的类名
-4. 优先使用 Windi 的标准前缀：p、m、w、h、text、bg、border、rounded、flex、grid
-5. 不混用互斥的类名（block + inline、p-1 + p-2）
-6. 同一元素上的类名不超过 10 个
-7. 不使用 CSS 属性名作为类名（如 padding、margin）
+使用 Tailwind CSS / Windi CSS 生成代码时，必须先加载并遵循 `vue-component-style` skill：只用真实存在的类名、布局优先 flex、不混用互斥类名、同一元素类名不超过 10 个。
 
 ### 6.4 空标签自闭合
 
-任何没有子节点或文本内容的非 void 元素（如 `a`、`div`、`span`、`p`、`button` 等），必须写成自闭合形式 `<tag-name />`。禁止写成 `<tag-name></tag-name>` 这类无内容的成对标签。
-
-**适用范围：**仅限 Vue 模板和 JSX/TSX 中的空成对标签。输出纯 HTML 时，非 void 元素不得自闭合（浏览器会把 `<div />` 当作未闭合的开始标签处理）。
-
-- 错误（空但未自闭合）：`<a href="/"></a>`、`<div></div>`、`<span></span>`
-- 正确（空且自闭合）：`<a href="/" />`、`<div />`、`<span />`
-
-注意：有内容时正常书写，例如 `<a href="/">Home</a>`。本条只针对空标签。
-
-输出代码时，自动把所有空的成对标签转换为自闭合形式。
+输出 Vue 模板 / JSX 代码时，必须先加载并遵循 `vue-component-style` skill：空成对标签一律自闭合（如 `<div />`），纯 HTML 除外（浏览器会把 `<div />` 当作未闭合的开始标签处理）。
 
 ### 6.5 输出与收尾
 
