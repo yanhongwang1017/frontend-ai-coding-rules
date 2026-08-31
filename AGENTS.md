@@ -181,7 +181,7 @@
 
 3. **默认值优先用 `??`，不用 `||`**。`const count = data.count || 0` 会把合法的 `0` 当假值吞掉，应写 `data.count ?? 0`；只有明确需要过滤假值时才用 `||`（如 `const keyword = inputValue || '全部'`）。
 
-4. **每个字段都要先确认来源再使用**。生成代码前按顺序检查：当前需求 → 当前文件 → 相关组件 → API 接口 → TypeScript 类型 → 项目已有用法。项目里已有 `userInfo.userName` 就沿用，不要自行改成 `userInfo.name` / `userInfo.username` / `userInfo.nickName`；修改已有代码时沿用原取值方式（原代码是 `row.userName`，后续继续 `row.userName`），除非需求明确要求兼容多个字段。
+4. **每个字段都要先确认来源再使用**。生成代码前按顺序检查：当前需求 → 当前文件 → 相关组件 → API 接口 → TypeScript 类型 → 项目已有用法——这是检索顺序（先确认需求要什么，再去找真实字段）；字段真实性的可信度以 `api-integration-checklist` 的契约证据源排序为准。项目里已有 `userInfo.userName` 就沿用，不要自行改成 `userInfo.name` / `userInfo.username` / `userInfo.nickName`；修改已有代码时沿用原取值方式（原代码是 `row.userName`，后续继续 `row.userName`），除非需求明确要求兼容多个字段。
 
 5. **字段不确定时停下询问，禁止自行补全**。无法确认字段名称、数据结构或接口返回值时，必须明确指出「当前上下文无法确认该字段的真实名称或数据结构，请提供接口返回结构或相关类型定义」，禁止为了让代码看起来完整而创造字段。
 
