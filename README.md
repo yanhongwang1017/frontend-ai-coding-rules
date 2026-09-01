@@ -1,6 +1,6 @@
 # frontend-ai-coding-rules
 
-前端 AI 编码规则仓库：一套给 AI 编码助手（ZCode、Claude Code、Trae 等）用的规则与配置合集，核心是 [AGENTS.md](AGENTS.md) 编码规范，外加两个场景化 skill 和 Git 提交规范。
+前端 AI 编码规则仓库：一套给 AI 编码助手（ZCode、Claude Code、Trae 等）用的规则与配置合集，核心是 [AGENTS.md](AGENTS.md) 编码规范，外加三个场景化 skill 和 Git 提交规范。
 
 ## 目录结构
 
@@ -11,6 +11,8 @@
 ├── .agents/
 │   └── skills/
 │       ├── api-integration-checklist/   # skill：接口联调契约校验
+│       │   └── SKILL.md
+│       ├── simplify/                    # skill：代码化简与无损重构
 │       │   └── SKILL.md
 │       └── vue-component-style/         # skill：组件内联细则与 Tailwind/Windi 规范
 │           └── SKILL.md
@@ -51,14 +53,18 @@
 
 AGENTS.md 对应小节只保留一行入口，细则集中在此，避免常驻上下文膨胀。
 
-### git-commit-message —— Trae 规则
+### simplify —— 代码化简与重构 skill
 
-Git 提交信息使用中文生成。
+灵感来自 Claude Code `/simplify` 命令，用于保持行为不变的前提下进行代码无损瘦身：
+
+- **保持行为不变**：严禁更改既有逻辑、返回值、副作用或公共接口；
+- **消除多余复杂度**：拍平不必要嵌套、删除冗余抽象与包装层、收敛临时变量；
+- **聚焦最近修改**：默认关注最近修改的代码，可由用户使用 `/simplify` 命令显式触发。
+
 
 ## 使用方式
 
 - **AGENTS.md** 是跨工具通用标准：复制到目标项目根目录即可，ZCode、Codex 等原生读取；Claude Code 通过同目录的 `CLAUDE.md`（`@AGENTS.md`）引用同一份规则。
-- **两个 skill** 放在项目的 `.agents/skills/` 目录下即可被 Agent 发现：接口联调、写组件模板样式时自动触发。
-- **.trae/rules/** 下的规则文件适用于 Trae，`alwaysApply: true` 表示对所有会话生效。
+- **Skills** 放在项目的 `.agents/skills/` 目录下即可被 Agent 发现：接口联调、组件开发以及通过 `/simplify` 化简代码时按需触发。
 
 也可以把本仓库整体作为新项目的前端 AI 配置模板，按需删减。
