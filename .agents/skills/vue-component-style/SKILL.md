@@ -1,31 +1,60 @@
 ---
 name: vue-component-style
-description: "生成或修改 Vue / uni-app 组件模板、脚本与 Tailwind CSS / Windi CSS 样式时的内联优先编码细则与类名规范：事件处理、计算属性、生命周期初始化、watch 的短逻辑一律内联，禁止包装 uni.showToast / this.$emit 等简单调用；Tailwind / Windi 类名必须真实存在、布局优先 flex、不混用互斥类名、同一元素类名不超过 10 个；空成对标签一律自闭合（纯 HTML 除外）。Use whenever 写 Vue 组件、改 Vue 模板、写 uni-app 页面、使用 Tailwind CSS / Windi CSS / 原子类、处理组件事件或 onMounted / onLoad 初始化逻辑、书写空标签或自闭合标签——即使用户没有明确提到「内联」或「样式规范」。"
+description: "生成或修改 Vue / uni-app 组件模板、脚本与 Tailwind CSS / Windi CSS 样式时的内联优先编码细则、组件职责归属与类名规范：事件处理、计算属性、生命周期初始化、watch 的短逻辑一律内联，禁止包装 uni.showToast / this.$emit 等简单调用；请求与提交必须由消费它的组件自己发起（谁消费谁请求），禁止上提父组件再 props 下传结果或 emit 反向调用——凡是「父组件给弹窗准备数据」「弹窗打开时取详情」「弹窗提交后刷新列表」这类分工，都按此判定；Tailwind / Windi 类名必须真实存在、布局优先 flex、不混用互斥类名、同一元素类名不超过 10 个；空成对标签一律自闭合（纯 HTML 除外）。Use whenever 写 Vue 组件、改 Vue 模板、写 uni-app 页面、给弹窗（Dialog）/ 抽屉（Drawer）/ 面板（Tab、Collapse）/ 行内编辑等子组件接数据或接口、新增或修改弹窗的打开与提交逻辑、决定某份数据或某个请求该写在父组件还是子组件、使用 Tailwind CSS / Windi CSS / 原子类、处理组件事件或 onMounted / onLoad 初始化逻辑、书写空标签或自闭合标签——即使用户没有明确提到「内联」「职责归属」或「样式规范」。"
 ---
 
-# Vue 组件内联细则与 Tailwind / Windi 类名规范
+# Vue 组件内联细则、职责归属与 Tailwind / Windi 类名规范
 
-## 一、Vue / uni-app 组件规则
+## 一、组件职责归属：谁消费，谁请求
+
+判断依据是**这份数据、这个操作的消费方是谁**，不是「谁是父组件」。弹窗（Dialog）、抽屉（Drawer）、面板（Tab / Collapse）、表格行内编辑等子组件，只要这份数据是它自己消费的，请求就在它内部发起。
+
+1. **禁止请求上提**：子组件自己消费的数据与操作（取详情、取下拉选项、提交），必须在该组件内部发起并持有；严禁写在父组件，再通过 props 下传结果、或通过 emit 反向调用父组件的方法。
+2. **传标识，不传结果**：父组件只传定位用的标识（`id` / `rowId` / `type`），由子组件自己去请求；严禁父组件请求好整个数据对象再 props 下传。例外：父组件已有的字段子组件全部直接使用、且无需额外请求时（如删除确认弹窗只展示名称），可直接传该字段。
+3. **成功后只传信号**：子组件操作成功后 `emit('success')`，父组件只负责刷新自己持有的数据（如列表）；严禁父组件替子组件发起请求、再把请求函数 props 传给子组件。
+4. **上提的唯一条件是多个消费者**：只有父组件与子组件都消费同一份数据、或多个兄弟组件共享时，才把请求与状态上提到父组件或 composable（对齐 AGENTS.md 5.7）；「父组件先写的」不构成上提理由——上提的触发条件是消费者数量，不是书写顺序。
+
+```vue
+<!-- 坏：父组件替弹窗请求详情、替弹窗提交 -->
+<DetailDialog :detail="detail" :submitting="submitting" @submit="handleSubmit" />
+```
+```js
+// 父组件：替弹窗请求它自己消费的数据
+const openDialog = async (row) => {
+  visible.value = true
+  detail.value = await fetchDetail(row.id).finally(() => { loading.value = false })
+}
+```
+```vue
+<!-- 好：父组件只传标识、只收信号；弹窗自己请求、自己管 loading -->
+<DetailDialog v-model:visible="visible" :id="currentId" @success="fetchList" />
+
+<!-- DetailDialog.vue -->
+onMounted(() => {
+  fetchDetail(props.id).finally(() => { loading.value = false })
+})
+```
+
+## 二、Vue / uni-app 组件规则
 
 1. 事件处理：短于 8 行的直接内联写在模板里，例如 `@click="count++"`，不要写 `increment()` 方法。
 2. 计算属性：简单计算可以直接写在模板里，例如 `{{ price * quantity }}`。只在需要缓存或复用时才使用 `computed`。
 3. `mounted` / `onLoad`：初始化逻辑加注释、空行后直接内联编写，不要拆成多个一次性方法。
-4. `watch`：短于 5 行的回调逻辑直接写，不要抽成方法。
+4. `watch`：短于 8 行的回调逻辑直接写，不要抽成方法（阈值对齐 AGENTS.md 5.1）。
 5. 不要把 `uni.showToast`、`uni.setStorageSync`、`this.$emit`、`console.log` 这类简单调用包装成方法。
 
-## 二、Tailwind CSS / Windi CSS 规则
+## 三、Tailwind CSS / Windi CSS 规则
 
 使用 Tailwind CSS 和 Windi CSS 生成代码时，严格遵守：
 
-1. 只使用必要的、真实存在的 Tailwind CSS 和 Windi CSS 类名
+1. 只使用必要的、真实存在的 Tailwind CSS 和 Windi CSS 类名，不使用生僻的或 AI 编造的类名
 2. 布局优先使用 flex，其次是 grid
-3. 不使用生僻的或 AI 编造的类名
-4. 优先使用 Windi 的标准前缀：p、m、w、h、text、bg、border、rounded、flex、grid
-5. 不混用互斥的类名（block + inline、p-1 + p-2）
-6. 同一元素上的类名不超过 10 个
-7. 不使用 CSS 属性名作为类名（如 padding、margin）
+3. 优先使用 Windi 的标准前缀：p、m、w、h、text、bg、border、rounded、flex、grid
+4. 不混用互斥的类名（block + inline、p-1 + p-2）
+5. 同一元素上的类名不超过 10 个
+6. 不使用 CSS 属性名作为类名（如 padding、margin）
 
-## 三、空标签自闭合
+## 四、空标签自闭合
 
 任何没有子节点或文本内容的非 void 元素（如 `a`、`div`、`span`、`p`、`button` 等），必须写成自闭合形式 `<tag-name />`。禁止写成 `<tag-name></tag-name>` 这类无内容的成对标签。
 
@@ -33,5 +62,3 @@ description: "生成或修改 Vue / uni-app 组件模板、脚本与 Tailwind CS
 
 - 错误（空但未自闭合）：`<a href="/"></a>`、`<div></div>`、`<span></span>`
 - 正确（空且自闭合）：`<a href="/" />`、`<div />`、`<span />`
-
-注意：有内容时正常书写，例如 `<a href="/">Home</a>`。本条只针对空标签。输出代码时，自动把所有空的成对标签转换为自闭合形式。
