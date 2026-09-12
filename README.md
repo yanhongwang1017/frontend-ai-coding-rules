@@ -11,7 +11,7 @@
 | [AGENTS.md](AGENTS.md) | 核心编码规范：修改授权与范围控制、工作流、技术栈约束（Vue 2 / Vue 3 不混用）、反过度工程化、数据字段与契约一致性、输出风格 |
 | [CLAUDE.md](CLAUDE.md) | Claude Code 入口，内容为 `@AGENTS.md` 引用 |
 | [api-integration-checklist](.agents/skills/api-integration-checklist/SKILL.md) | 接口联调契约校验：字段与响应壳以真实契约为准，缺口阻断并生成《接口联调清单.md》确认单，跑通即删 |
-| [vue-component-style](.agents/skills/vue-component-style/SKILL.md) | Vue / uni-app 组件细则：短逻辑内联、Tailwind / Windi 类名规范、空标签自闭合 |
+| [vue-component-style](.agents/skills/vue-component-style/SKILL.md) | Vue / uni-app 组件细则：短逻辑内联、组件职责归属（谁消费谁请求、弹窗 / 抽屉显隐自持）、Tailwind / Windi 类名规范、空标签自闭合 |
 | [simplify](.agents/skills/simplify/SKILL.md) | 代码化简与无损重构：行为不变前提下消除多余复杂度，`/simplify` 触发 |
 | [.trae/rules/git-commit-message.md](.trae/rules/git-commit-message.md) | Trae 规则：Git 提交信息用中文 |
 | [sync-rules.command](sync-rules.command) | macOS 同步脚本：把 `.agents/` 与 `AGENTS.md` 覆盖复制到一个或多个目标项目 |
@@ -32,7 +32,7 @@
 │       │   └── SKILL.md
 │       ├── simplify/                    # skill：代码化简与无损重构
 │       │   └── SKILL.md
-│       └── vue-component-style/         # skill：组件内联细则与 Tailwind/Windi 规范
+│       └── vue-component-style/         # skill：组件职责归属、内联细则与 Tailwind/Windi 规范
 │           └── SKILL.md
 └── .trae/
     └── rules/

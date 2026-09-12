@@ -1,6 +1,6 @@
 ---
 name: vue-component-style
-description: "生成或修改 Vue / uni-app 组件模板、脚本与 Tailwind CSS / Windi CSS 样式时的内联优先编码细则、组件职责归属与类名规范：事件处理、计算属性、生命周期初始化、watch 的短逻辑一律内联，禁止包装 uni.showToast / this.$emit 等简单调用；请求与提交必须由消费它的组件自己发起（谁消费谁请求），禁止上提父组件再 props 下传结果或 emit 反向调用——凡是「父组件给弹窗准备数据」「弹窗打开时取详情」「弹窗提交后刷新列表」这类分工，都按此判定；Tailwind / Windi 类名必须真实存在、布局优先 flex、不混用互斥类名、同一元素类名不超过 10 个；空成对标签一律自闭合（纯 HTML 除外）。Use whenever 写 Vue 组件、改 Vue 模板、写 uni-app 页面、给弹窗（Dialog）/ 抽屉（Drawer）/ 面板（Tab、Collapse）/ 行内编辑等子组件接数据或接口、新增或修改弹窗的打开与提交逻辑、决定某份数据或某个请求该写在父组件还是子组件、使用 Tailwind CSS / Windi CSS / 原子类、处理组件事件或 onMounted / onLoad 初始化逻辑、书写空标签或自闭合标签——即使用户没有明确提到「内联」「职责归属」或「样式规范」。"
+description: "生成或修改 Vue / uni-app 组件模板、脚本与 Tailwind CSS / Windi CSS 样式时的内联优先编码细则、组件职责归属与类名规范：事件处理、计算属性、生命周期初始化、watch 的短逻辑一律内联，禁止包装 uni.showToast / this.$emit 等简单调用；请求与提交必须由消费它的组件自己发起（谁消费谁请求），禁止上提父组件再 props 下传结果或 emit 反向调用——凡是「父组件给弹窗准备数据」「弹窗打开时取详情」「弹窗提交后刷新列表」这类分工，都按此判定；Tailwind / Windi 类名必须真实存在、布局优先 flex、不混用互斥类名、同一元素类名不超过 10 个；空成对标签一律自闭合（纯 HTML 除外）。Use whenever 写 Vue 组件、改 Vue 模板、写 uni-app 页面、给弹窗（Dialog）/ 抽屉（Drawer）/ 面板（Tab、Collapse）/ 行内编辑等子组件接数据或接口、新增或修改弹窗 / 抽屉的打开、关闭、显隐（v-model / visible / open / close）与提交逻辑、决定某份数据或某个请求该写在父组件还是子组件、使用 Tailwind CSS / Windi CSS / 原子类、处理组件事件或 onMounted / onLoad 初始化逻辑、书写空标签或自闭合标签——即使用户没有明确提到「内联」「职责归属」或「样式规范」。"
 ---
 
 # Vue 组件内联细则、职责归属与 Tailwind / Windi 类名规范
@@ -27,12 +27,65 @@ const openDialog = async (row) => {
 ```
 ```vue
 <!-- 好：父组件只传标识、只收信号；弹窗自己请求、自己管 loading -->
-<DetailDialog v-model:visible="visible" :id="currentId" @success="fetchList" />
+<DetailDialog ref="detailDialogRef" :id="currentId" @success="fetchList" />
 
 <!-- DetailDialog.vue -->
-onMounted(() => {
+watch(visible, () => {
   fetchDetail(props.id).finally(() => { loading.value = false })
 })
+```
+
+弹窗 / 抽屉的显隐是它自己消费的状态，与上述请求同源——以下为该节在显隐上的展开，父组件不再持有 `v-model`：
+
+5. **显隐自持，`open()` / `close()` 对外**：弹窗、抽屉内部持有 `const visible = ref(false)`，用 `defineExpose` 暴露 `open()` 与 `close()`；父组件用 `ref<InstanceType<typeof XModal> | null>(null)` 持有并调用。
+   - 坏：父组件 `const showXxx = ref(false)` + `<XModal v-model="showXxx" />` + `showXxx.value = true`
+   - 好：父组件 `const xxxRef = ref<InstanceType<typeof XModal> | null>(null)` + `<XModal ref="xxxRef" />` + `xxxRef.value?.open()`
+   - Vue 2 / uni-app 对照：`data` 里放 `visible`，`methods` 里写 `open` / `close`，父组件 `this.$refs.xxx.open()`
+6. **每次打开都要做的重置写进 `open()`**：清空表单、重置分页与校验放 `open()` 内，父组件不再每次打开前手工重置（无 props 依赖的弹窗适用，如「打开即清空拒绝理由」）。
+7. **模板内的关闭点直接走 `close()`**：关闭图标、取消按钮写 `@click="close()"`，成功回调里的关闭同理，不再出现 `visible = false`。
+8. **例外：依赖 props 的初始化不要同步塞进 `open()`**：父组件常见写法是「先给 props 赋值、紧接着调 `open()`」，而 props 要到下一个渲染周期才更新，同步读 `props.xxx` 会拿到上一份数据。这类逻辑（按 id 拉详情、预加载选项）保留在 `watch(visible)` 内——pre-flush，触发时 props 已更新，与改造前语义一致；或让父组件改成 `nextTick(() => xxxRef.value?.open())`。二选一，在代码里注明取舍即可。
+9. **联动关闭必须显式补**：父级容器（抽屉）关闭时若需一并关掉子弹窗，写 `childRef.value?.close()`。改造后不再有 `v-model`，原来靠 `watch(visible)` 联动重置子组件状态的代码会静默失效（不报错、弹窗就是打不开 / 关不掉）——这是该模式唯一的真实风险，改完必须 grep 旧变量名确认无残留。
+10. **成功信号与关闭分离**：子组件操作成功后照旧 `emit('success' / 'confirm')` 让父组件刷新自己的数据，关闭动作由子组件自己 `close()`，不要父组件替它关。
+
+```vue
+<!-- 坏：父组件持有显隐、v-model 下传 -->
+<PayModal v-model="showPayModal" :task="currentPayTask" @confirm="fetchDetail" />
+```
+```js
+const showPayModal = ref(false)
+const currentPayTask = ref({})
+const handlePay = (row) => {
+  currentPayTask.value = row
+  showPayModal.value = true
+}
+```
+```vue
+<!-- 好：父组件只持有引用，打开走组件自己暴露的方法 -->
+<PayModal ref="payModalRef" :task="currentPayTask" @confirm="fetchDetail" />
+```
+```js
+const payModalRef = ref<InstanceType<typeof PayModal> | null>(null)
+const currentPayTask = ref({})
+const handlePay = (row) => {
+  currentPayTask.value = row
+  payModalRef.value?.open()   // 打开
+}
+```
+```vue
+<!-- PayModal.vue -->
+<script setup lang="ts">
+const visible = ref(false)
+
+// 打开弹窗
+const open = () => {
+  visible.value = true
+}
+// 关闭弹窗
+const close = () => {
+  visible.value = false
+}
+defineExpose({ open, close })
+</script>
 ```
 
 ## 二、Vue / uni-app 组件规则

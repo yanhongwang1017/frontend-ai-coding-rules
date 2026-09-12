@@ -58,7 +58,7 @@
 6. 不要假设项目中存在某个文件、组件、接口或工具；无法确认的信息必须明确标记为「需要进一步确认」，禁止编造。
 7. 考虑修改对现有功能的影响：除非本次需求就是要移除或替换该功能，否则不得删除已有功能、不得破坏 API 兼容。
 8. 实现方式与项目现有技术栈和代码风格保持一致，不得随意新增依赖。
-9. 需求存在歧义时：先分析歧义与可能的实现方式，能按最小合理假设推进的，说明假设后直接做完，不要停在计划阶段；歧义会实质改变结果的，才先确认再动手。
+9. 需求存在歧义时：先分析歧义与可能的实现方式，再按 2.3 的「必问 / 不问」判定——不会实质改变结果的，说明假设后直接做完，不要停在计划阶段；会实质改变结果的，才先确认再动手。
 10. 涉及后端接口的任务（封装请求层、定义接口类型、联调、mock 数据），必须先加载并遵循 `api-integration-checklist` skill；接口与字段必须以真实契约为准，禁止编造字段名或写死 Mock 数据（经 skill 确认单流程且用户明确同意的临时占位除外）。
 11. 修改代码后禁止自动执行 `yarn build` 打包命令（避免耗时过长/产生构建产物），除非用户明确要求。
 
@@ -117,13 +117,13 @@
 - 兼容性，以及可达证据要求的迁移工作
 - 受影响的调用方、fixture、测试——可达证据需要，就要做
 
-没有检查的懒代码等于没写完：非平凡逻辑（分支、循环、解析器、资金/安全路径）要留下一个可运行的最小验证——逻辑一旦损坏就会失败的自检（基于 assert 或一个小的测试文件，不用测试框架、不用 fixture）。平凡的一行代码不需要测试，YAGNI 对测试同样适用。
+没有检查的懒代码等于没写完：非平凡逻辑（分支、循环、解析器、资金/安全路径）要留下一个可运行的最小验证——逻辑一旦损坏就会失败的自检（基于 assert 或一个小的测试文件；「不用测试框架、不用 fixture」只是最小自检的默认形态，底线条要求的既有 fixture、测试该跟就跟）。平凡的一行代码不需要测试，YAGNI 对测试同样适用。
 
 文件更少、行数更少不是目标——最小的**正确**结果才是。
 
 ### 5.6 Vue / uni-app 组件规则
 
-编写 Vue / uni-app 组件模板与脚本、使用 Tailwind CSS / Windi CSS、或输出空标签时，必须先加载并遵循 `vue-component-style` skill——组件内联细则、组件职责归属（谁消费谁请求）、Tailwind / Windi 类名规范、空标签自闭合（纯 HTML 除外）均以该 skill 为准，不在这里复述。
+编写 Vue / uni-app 组件模板与脚本、使用 Tailwind CSS / Windi CSS、或输出空标签时，必须先加载并遵循 `vue-component-style` skill——组件内联细则、Tailwind / Windi 类名规范、空标签自闭合（纯 HTML 除外）均以该 skill 为准，不在这里复述；组件职责归属的原则见 5.7（谁消费谁请求），skill 第一节是它在弹窗 / 抽屉等子组件场景的展开细则。
 
 ### 5.7 Mixin / Hooks / Composables 规则
 
@@ -170,8 +170,6 @@
 
 ### 5.11 坏例子与好例子对比
 
-> 示例用 Vue 3 `<script setup>` 演示；Vue 2 / uni-app 按 Options API 对照，规则相同。
-
 ```js
 // 坏：composable 存简单数据、转发函数、只被调用一次的包装层
 export function usePage() {
@@ -184,25 +182,6 @@ export function usePage() {
 const page = ref(1)
 ```
 
-```vue
-<!-- 坏：一件事抽一个方法，层层包装 -->
-<button @click="increment">Increase</button>
-<script setup>
-const increment = () => { count++ }   // 应内联为 @click="count++"
-function init() { loadData() }        // 应直接写在 onMounted 里
-onMounted(() => { init() })
-</script>
-
-<!-- 好：事件内联进模板，初始化逻辑带注释直接写 -->
-<button @click="count++">Increase</button>
-<script setup>
-onMounted(() => {
-  userId.value = getUserInfo()   // 1. 获取用户信息
-  fetchList()                    // 2. 加载列表
-})
-</script>
-```
-
 ---
 
 ## 6. 输出风格规则
@@ -213,7 +192,7 @@ onMounted(() => {
 
 ### 6.2 错误处理（try-catch）
 
-- **接口请求禁用 `try-catch`**：请求的错误处理与收尾一律走 `.catch()`（按需）与 `.finally()`（必挂），不包 `try-catch`。
+- **接口请求禁用 `try-catch`**：请求的错误处理与收尾一律走 `.catch()`（按需）与 `.finally()`（必挂），不包 `try-catch`。`.finally()` 挂在哪条链、`.catch()` 里留什么，见 `api-integration-checklist` 的「加载态（loading）处理」。
 - 其他场景尽量避免：只在处理明确的、已知的错误时才用，能不用就不用；绝不为了「以防万一」而包裹 `try-catch`。
 
 ### 6.3 输出与收尾

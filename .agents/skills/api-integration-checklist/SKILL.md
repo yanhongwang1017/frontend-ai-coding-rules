@@ -113,6 +113,14 @@ description: "前端与后端接口联调的契约校验与后端沟通规范：
 
 3. **状态归属与 composable 规则一致**：loading 若被多组件复用（如 `useList: loading + list + fetchList`），在 composable 内部管理，调用处不重复 `finally`；仅单组件使用时留在组件内（见 AGENTS.md 5.7）。
 
+4. **`.finally()` 挂在哪条链上，是行为差异不是风格问题**：请求后面还跟着别的 `await`（如先拉详情、再预加载级联选项）时，`.finally()` 要挂在整条链上，才能保持「全部完成才收尾」的原有语义；只挂在第一个请求上会让 loading 提前消失——这是行为改变，不是化简，必须说明。
+
+5. **去掉 `try` 后不再 `await` 时，函数改返回 promise**：否则调用方拿不到链，无法自己 `.finally()` 收尾。是否保留 `async` 只看还用不用 `await`，不要为了「消灭 async」把线性代码改成嵌套 `.then`。
+
+6. **`.catch()` 里只留就地状态处理，不重复网络提示**：项目请求层（拦截器）通常已统一 toast，业务侧再 `layer.msg(err.message)` 会叠成两条。`catch` 保留的是错误后必须复位 / 清空的派生状态（如清掉按旧输入算出的值），提示交给请求层。
+
+7. **固定形态**：收尾一律走第 2 条的两种形态——`await req().finally(closeLoading)`；需就地处理错误时 `req().catch(handleErr).finally(closeLoading)`，收尾函数命名 `closeLoading`。
+
 ## 确认单模板
 
 ```markdown
