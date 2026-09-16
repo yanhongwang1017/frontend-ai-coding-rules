@@ -8,7 +8,7 @@ description: "前端与后端接口联调的契约校验与后端沟通规范：
 联调阶段后端接口常常不完整：接口还没写、字段还没加、文档滞后于实现。本技能是硬规范，三条底线：
 
 1. **禁止私自脑补**：UI/业务所需数据在接口契约中不存在时，严禁自行捏造字段名或写死 Mock 数据。按需求清单先行开发的静态页面、其中的本地占位数据不属于本条禁令——联调替换时以契约字段替换占位，未替换到的占位清理干净。
-2. **阻断并生成确认单**：一旦检测到接口缺失、字段缺失、类型不匹配或行为异常，立即暂停业务代码生成，先输出确认单。
+2. **阻断并生成确认单**：一旦检测到接口缺失、字段缺失、类型不匹配或行为异常，立即暂停业务代码生成，先输出确认单。这属于 AGENTS.md 2.3 中「必问」的具体情形——契约缺口是外部依赖缺失，不由「不停在计划、不中途回来确认」一条覆盖，不要用「先写完再一起确认」的方式绕过。
 3. **实时更新、跑通即删**：《接口联调清单.md》是当前未决缺口的实时快照——新缺口随时进单，已跑通的条目随时删除，不做历史归档。
 
 ## 什么是"契约"（证据源优先级）
@@ -39,6 +39,28 @@ description: "前端与后端接口联调的契约校验与后端沟通规范：
 1. **接口多返回字段是正常情况**。页面只使用契约字段的一部分是常态，不要为「字段利用率」补齐 UI：接口返回了 `logisticsCompany`，现有表格只有三列就保持三列，禁止擅自加「物流公司」列。
 2. **新增展示字段的合法依据只有四种**：用户明确要求、UI/产品设计明确要求、当前任务明确要求、完成当前需求所必需。四种之外，即使契约里有该字段也不展示。
 3. **修改已有页面遵循最小变更**。给 C 加点击事件就只加点击逻辑，禁止顺便调整列顺序、修改字段名、增加展示区域、重构布局；修改前先确认现有的列、按钮与交互，除非需求明确要求，现状视为不可变更项。
+
+## 加载态（loading）处理
+
+1. **按需添加，不滥用**：只在用户需要等待反馈的界面交互处加 loading（如表单提交、列表首屏加载、关键按钮请求）；非阻塞、用户无感知的后台请求不加。能用局部状态就不用全局 loading。
+
+2. **用 `finally` 兜底关闭，不写 `try/catch`；`catch` 按需加**：请求不论成功或失败，都在 `.finally()` 中关闭 loading，避免异常路径下 loading 残留。`.finally()` 必须挂；`.catch()` 只在必须就地处理错误时才加，不要无脑加——错误通常由 api 层或调用方统一处理。promise chain 与 async/await 都挂 `.finally()` 收尾，不要用 `try/catch` 包裹。
+
+   - 需就地处理错误：`fetchData().catch(handleErr).finally(() => { loading.value = false })`
+   - 无需处理错误：`fetchData().finally(() => { loading.value = false })`
+   - async/await：`const data = await fetchData().finally(() => { loading.value = false })`
+   - 坏：只在 `then` 里关、`catch` 里漏关——报错后 loading 永远卡住；或把 `finally` 包进 `try/catch` 里。
+   - 本条只负责 loading 的兜底关闭，不为关 loading 而引入 `try/catch` / 无脑 `catch`。
+
+3. **状态归属与 composable 规则一致**：loading 若被多组件复用（如 `useList: loading + list + fetchList`），在 composable 内部管理，调用处不重复 `finally`；仅单组件使用时留在组件内（见 AGENTS.md 5.7）。
+
+4. **`.finally()` 挂在哪条链上，是行为差异不是风格问题**：请求后面还跟着别的 `await`（如先拉详情、再预加载级联选项）时，`.finally()` 要挂在整条链上，才能保持「全部完成才收尾」的原有语义；只挂在第一个请求上会让 loading 提前消失——这是行为改变，不是化简，必须说明。
+
+5. **去掉 `try` 后不再 `await` 时，函数改返回 promise**：否则调用方拿不到链，无法自己 `.finally()` 收尾。是否保留 `async` 只看还用不用 `await`，不要为了「消灭 async」把线性代码改成嵌套 `.then`。
+
+6. **`.catch()` 里只留就地状态处理，不重复网络提示**：项目请求层（拦截器）通常已统一 toast，业务侧再 `layer.msg(err.message)` 会叠成两条。`catch` 保留的是错误后必须复位 / 清空的派生状态（如清掉按旧输入算出的值），提示交给请求层。
+
+7. **固定形态**：收尾一律走第 2 条的两种形态——`await req().finally(closeLoading)`；需就地处理错误时 `req().catch(handleErr).finally(closeLoading)`。收尾函数的命名体现它关的是哪个 loading：只有一个可直接叫 `closeLoading`，同组件有多个时按对象区分（如 `closeSubmitLoading`）。
 
 ## 工作流程
 
@@ -98,28 +120,6 @@ description: "前端与后端接口联调的契约校验与后端沟通规范：
 3. 是否存在临时 mock / 占位代码？分别位于哪些文件？
 4. 清单中还有几张确认单、共几条未决、哪些处于"待验证"？
 5. 建议下一步找后端确认什么？
-
-### 加载态（loading）处理
-
-1. **按需添加，不滥用**：只在用户需要等待反馈的界面交互处加 loading（如表单提交、列表首屏加载、关键按钮请求）；非阻塞、用户无感知的后台请求不加。能用局部状态就不用全局 loading。
-
-2. **用 `finally` 兜底关闭，不写 `try/catch`；`catch` 按需加**：请求不论成功或失败，都在 `.finally()` 中关闭 loading，避免异常路径下 loading 残留。`.finally()` 必须挂；`.catch()` 只在必须就地处理错误时才加，不要无脑加——错误通常由 api 层或调用方统一处理。promise chain 与 async/await 都挂 `.finally()` 收尾，不要用 `try/catch` 包裹。
-
-   - 需就地处理错误：`fetchData().catch(handleErr).finally(() => { loading.value = false })`
-   - 无需处理错误：`fetchData().finally(() => { loading.value = false })`
-   - async/await：`const data = await fetchData().finally(() => { loading.value = false })`
-   - 坏：只在 `then` 里关、`catch` 里漏关——报错后 loading 永远卡住；或把 `finally` 包进 `try/catch` 里。
-   - 本条只负责 loading 的兜底关闭，不为关 loading 而引入 `try/catch` / 无脑 `catch`。
-
-3. **状态归属与 composable 规则一致**：loading 若被多组件复用（如 `useList: loading + list + fetchList`），在 composable 内部管理，调用处不重复 `finally`；仅单组件使用时留在组件内（见 AGENTS.md 5.7）。
-
-4. **`.finally()` 挂在哪条链上，是行为差异不是风格问题**：请求后面还跟着别的 `await`（如先拉详情、再预加载级联选项）时，`.finally()` 要挂在整条链上，才能保持「全部完成才收尾」的原有语义；只挂在第一个请求上会让 loading 提前消失——这是行为改变，不是化简，必须说明。
-
-5. **去掉 `try` 后不再 `await` 时，函数改返回 promise**：否则调用方拿不到链，无法自己 `.finally()` 收尾。是否保留 `async` 只看还用不用 `await`，不要为了「消灭 async」把线性代码改成嵌套 `.then`。
-
-6. **`.catch()` 里只留就地状态处理，不重复网络提示**：项目请求层（拦截器）通常已统一 toast，业务侧再 `layer.msg(err.message)` 会叠成两条。`catch` 保留的是错误后必须复位 / 清空的派生状态（如清掉按旧输入算出的值），提示交给请求层。
-
-7. **固定形态**：收尾一律走第 2 条的两种形态——`await req().finally(closeLoading)`；需就地处理错误时 `req().catch(handleErr).finally(closeLoading)`，收尾函数命名 `closeLoading`。
 
 ## 确认单模板
 

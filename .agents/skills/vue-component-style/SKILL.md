@@ -1,6 +1,6 @@
 ---
 name: vue-component-style
-description: "生成或修改 Vue / uni-app 组件模板、脚本与 Tailwind CSS / Windi CSS 样式时的内联优先编码细则、组件职责归属与类名规范：事件处理、计算属性、生命周期初始化、watch 的短逻辑一律内联，禁止包装 uni.showToast / this.$emit 等简单调用；请求与提交必须由消费它的组件自己发起（谁消费谁请求），禁止上提父组件再 props 下传结果或 emit 反向调用——凡是「父组件给弹窗准备数据」「弹窗打开时取详情」「弹窗提交后刷新列表」这类分工，都按此判定；Tailwind / Windi 类名必须真实存在、布局优先 flex、不混用互斥类名、同一元素类名不超过 10 个；空成对标签一律自闭合（纯 HTML 除外）。Use whenever 写 Vue 组件、改 Vue 模板、写 uni-app 页面、给弹窗（Dialog）/ 抽屉（Drawer）/ 面板（Tab、Collapse）/ 行内编辑等子组件接数据或接口、新增或修改弹窗 / 抽屉的打开、关闭、显隐（v-model / visible / open / close）与提交逻辑、决定某份数据或某个请求该写在父组件还是子组件、使用 Tailwind CSS / Windi CSS / 原子类、处理组件事件或 onMounted / onLoad 初始化逻辑、书写空标签或自闭合标签——即使用户没有明确提到「内联」「职责归属」或「样式规范」。"
+description: "Vue / uni-app 组件的内联优先细则、职责归属与 Tailwind / Windi 类名规范：短逻辑内联，不包装 uni.showToast / this.$emit 等简单调用；请求与提交由消费它的组件自己发起（谁消费谁请求），禁止上提父组件再 props 下传或 emit 反向调用；弹窗 / 抽屉显隐自持，对外暴露 open() / close()；Tailwind / Windi 类名必须真实存在、布局优先 flex、不混用互斥类名、同一元素不超过 10 个；空成对标签自闭合（纯 HTML 除外）。Use whenever 写或改 Vue 组件、uni-app 页面，给弹窗（Dialog）、抽屉（Drawer）、面板、行内编辑等子组件接数据或接口，新增或修改弹窗 / 抽屉的打开、关闭、显隐与提交逻辑，判断某份数据或请求该写在父组件还是子组件，使用 Tailwind / Windi 原子类，处理组件事件或 onMounted / onLoad 初始化，书写空标签。"
 ---
 
 # Vue 组件内联细则、职责归属与 Tailwind / Windi 类名规范
@@ -90,11 +90,12 @@ defineExpose({ open, close })
 
 ## 二、Vue / uni-app 组件规则
 
-1. 事件处理：短于 8 行的直接内联写在模板里，例如 `@click="count++"`，不要写 `increment()` 方法。
-2. 计算属性：简单计算可以直接写在模板里，例如 `{{ price * quantity }}`。只在需要缓存或复用时才使用 `computed`。
-3. `mounted` / `onLoad`：初始化逻辑加注释、空行后直接内联编写，不要拆成多个一次性方法。
-4. `watch`：短于 8 行的回调逻辑直接写，不要抽成方法（阈值对齐 AGENTS.md 5.1）。
-5. 不要把 `uni.showToast`、`uni.setStorageSync`、`this.$emit`、`console.log` 这类简单调用包装成方法。
+阈值与取舍不在这里复述，一律对齐 AGENTS.md 5.1（只用一次、短于 8 行的逻辑必须内联；同一逻辑出现 2 次以上或超过 10 行才考虑提取）。落地到 Vue 的形态：
+
+1. 模板事件处理直接内联，如 `@click="count++"`，不写 `increment()` 方法。
+2. 计算属性优先写在模板里，如 `{{ price * quantity }}`；只在需要缓存或复用时才用 `computed`。
+3. `mounted` / `onLoad` 的初始化逻辑加注释、空行后直接内联，不拆成多个一次性方法；`watch` 回调同理。
+4. 不要把 `uni.showToast`、`uni.setStorageSync`、`this.$emit`、`console.log` 这类简单调用包装成方法。
 
 ## 三、Tailwind CSS / Windi CSS 规则
 

@@ -123,7 +123,7 @@
 
 ### 5.6 Vue / uni-app 组件规则
 
-编写 Vue / uni-app 组件模板与脚本、使用 Tailwind CSS / Windi CSS、或输出空标签时，必须先加载并遵循 `vue-component-style` skill——组件内联细则、Tailwind / Windi 类名规范、空标签自闭合（纯 HTML 除外）均以该 skill 为准，不在这里复述；组件职责归属的原则见 5.7（谁消费谁请求），skill 第一节是它在弹窗 / 抽屉等子组件场景的展开细则。
+编写 Vue / uni-app 组件模板与脚本、使用 Tailwind CSS / Windi CSS、或输出空标签时，必须先加载并遵循 `vue-component-style` skill——组件内联的落地形态（阈值仍以 5.1 为准）、Tailwind / Windi 类名规范、空标签自闭合（纯 HTML 除外）均以该 skill 为准，不在这里复述；组件职责归属的原则见 5.7（谁消费谁请求），skill 第一节是它在弹窗 / 抽屉等子组件场景的展开细则。
 
 ### 5.7 Mixin / Hooks / Composables 规则
 
